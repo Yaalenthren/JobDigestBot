@@ -1,18 +1,18 @@
-# 🚀 DevOps Job Digest
+# DevOps Job Digest
 
 A GitHub Actions bot that scrapes DevOps & Cloud engineering jobs daily and sends them straight to your inbox every morning at **6:00 AM Sri Lanka time**.
 
-## 📋 What it does
+## What it does
 
 - Scrapes **RemoteOK**, **WeWorkRemotely**, **Remotive**, **Himalayas**, and **LinkedIn**
-- Filters for DevOps, Cloud, SRE, Platform, and Kubernetes roles
+- Filters for DevOps, Cloud, SRE, Platform, and Kubernetes roles with 0-2 years experience
 - Deduplicates listings
 - Sends a beautiful HTML digest email with one-click apply links
 - Runs automatically every day — zero effort from you
 
 ---
 
-## ⚙️ Setup (5 minutes)
+## Setup (5 minutes)
 
 ### Step 1 — Fork or create this repo on GitHub
 Push all these files to a new GitHub repo (can be private).
@@ -45,7 +45,7 @@ Go to **Actions → Daily DevOps Job Digest → Run workflow** to trigger a manu
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 devops-job-digest/
@@ -60,7 +60,7 @@ devops-job-digest/
 
 ---
 
-## 🕕 Schedule
+## Schedule
 The workflow runs at `00:30 UTC` which is **6:00 AM Sri Lanka time (UTC+5:30)**.
 
 To change the time, edit `.github/workflows/daily_digest.yml`:
@@ -70,7 +70,7 @@ To change the time, edit `.github/workflows/daily_digest.yml`:
 
 ---
 
-## 📬 Email Preview
+## Email Preview
 
 The digest email includes:
 - Job title, company, and location
@@ -80,7 +80,7 @@ The digest email includes:
 
 ---
 
-## 🔧 Customization
+## Customization
 
 In `scripts/job_digest.py`, you can adjust:
 - `KEYWORDS` list — add or remove job titles
