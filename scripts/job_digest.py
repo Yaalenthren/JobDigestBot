@@ -40,6 +40,76 @@ HEADERS = {
 
 today = date.today().strftime("%B %d, %Y")
 
+# ── Senior keywords — filter these OUT ───────────────────────────────────────
+SENIOR_KEYWORDS = [
+    "senior", "sr.", "sr ", "lead", "principal", "staff", "manager",
+    "director", "head of", "vp ", "vice president", "architect",
+    "5+ years", "6+ years", "7+ years", "8+ years", "10+ years",
+    "5 years", "6 years", "7 years", "8 years", "10 years",
+]
+
+# ── Region-restricted keywords — filter these OUT ────────────────────────────
+REGION_RESTRICTED = [
+    "only", "must be based", "must reside", "must live",
+    "us only", "uk only", "eu only", "usa only", "canada only",
+    "australia only", "germany only", "france only",
+    "united states only", "north america only", "europe only",
+    "authorized to work in", "eligible to work in",
+    "right to work in", "visa sponsorship not",
+    "no sponsorship", "we do not sponsor",
+    "residents of", "citizens only", "permanent resident",
+]
+
+# ── Worldwide-friendly keywords — always keep these ──────────────────────────
+WORLDWIDE_KEYWORDS = [
+    "worldwide", "global", "anywhere", "fully remote", "work from anywhere",
+    "all countries", "international", "remote worldwide", "100% remote",
+]
+
+def is_entry_level(title, tags=""):
+    """Returns True if the job is NOT a senior role."""
+    text = (title + " " + tags).lower()
+    for kw in SENIOR_KEYWORDS:
+        if kw in text:
+            return False
+    return True
+
+def is_worldwide_remote(location, description=""):
+    """
+    Returns True if the job is open to candidates worldwide.
+    - Rejects jobs that mention region restrictions
+    - Keeps jobs that say worldwide/global/anywhere
+    - Keeps jobs with vague locations like 'Remote' or 'Worldwide'
+    """
+    text = (location + " " + description).lower()
+
+    # If explicitly worldwide — always keep
+    for kw in WORLDWIDE_KEYWORDS:
+        if kw in text:
+            return True
+
+    # If region restricted — reject
+    for kw in REGION_RESTRICTED:
+        if kw in text:
+            return False
+
+    # If location is just "Remote" or empty — assume worldwide, keep it
+    vague = ["remote", "worldwide", "global", "", "work from home", "wfh"]
+    if location.lower().strip() in vague:
+        return True
+
+    # If it mentions a specific country alone — likely restricted
+    specific_countries = [
+        "united states", "united kingdom", "australia", "canada",
+        "germany", "france", "netherlands", "singapore", "india",
+        "new zealand", "ireland", "sweden", "denmark", "norway",
+    ]
+    for country in specific_countries:
+        if country in text and "worldwide" not in text and "global" not in text:
+            return False
+
+    return True
+
 
 # ── Scrapers ─────────────────────────────────────────────────────────────────
 
@@ -60,7 +130,7 @@ def scrape_remoteok():
             tags = set(t.lower() for t in item.get("tags", []))
             title = item.get("position", "").lower()
 
-            if tags & devops_tags or any(k in title for k in ["devops", "cloud", "sre", "platform", "infra"]):
+            if (tags & devops_tags or any(k in title for k in ["devops", "cloud", "sre", "platform", "infra"])) and is_entry_level(item.get("position", ""), ", ".join(item.get("tags", []))) and is_worldwide_remote("Remote"):
                 jobs.append({
                     "title":   item.get("position", "N/A"),
                     "company": item.get("company", "N/A"),
@@ -98,13 +168,19 @@ def scrape_weworkremotely():
                     continue
 
                 title_text = title.get_text(strip=True)
-                # Filter out CDATA junk
                 title_text = re.sub(r'<!\[CDATA\[|\]\]>', '', title_text).strip()
+
+                if not is_entry_level(title_text):
+                    continue
+
+                location_text = region.get_text(strip=True) if region else "Remote"
+                if not is_worldwide_remote(location_text):
+                    continue
 
                 jobs.append({
                     "title":    title_text,
                     "company":  "See listing",
-                    "location": region.get_text(strip=True) if region else "Remote",
+                    "location": location_text,
                     "url":      link.next_sibling.strip() if link.next_sibling else link.get_text(strip=True),
                     "source":   "WeWorkRemotely",
                     "tags":     "",
@@ -120,16 +196,17 @@ def scrape_linkedin_rss():
     """Use LinkedIn job search RSS feeds."""
     jobs = []
     searches = [
-        ("devops+engineer", "remote"),
-        ("cloud+engineer", "remote"),
-        ("site+reliability+engineer", "remote"),
+        ("junior+devops+engineer", "worldwide"),
+        ("entry+level+cloud+engineer", "worldwide"),
+        ("junior+kubernetes+engineer", "worldwide"),
         ("devops+engineer", "sri+lanka"),
     ]
     for keyword, location in searches:
         try:
+            # f_E=2 = Entry level, f_WT=2 = Remote, f_TPR=r86400 = past 24hrs
             url = (
                 f"https://www.linkedin.com/jobs/search/?keywords={keyword}"
-                f"&location={location}&f_TPR=r86400&f_WT=2"
+                f"&location={location}&f_TPR=r86400&f_WT=2&f_E=2"
             )
             jobs.append({
                 "title":    keyword.replace("+", " ").title(),
@@ -156,6 +233,10 @@ def scrape_jobspy_style():
         resp = requests.get(url, headers=HEADERS, timeout=15)
         data = resp.json()
         for item in data.get("jobs", []):
+            if not is_entry_level(item.get("title", ""), ", ".join(item.get("skills", []))):
+                continue
+            if not is_worldwide_remote(item.get("location", "Remote")):
+                continue
             jobs.append({
                 "title":    item.get("title", "N/A"),
                 "company":  item.get("company", {}).get("name", "N/A"),
@@ -174,9 +255,11 @@ def scrape_jobspy_style():
         resp = requests.get(url, headers=HEADERS, timeout=15)
         data = resp.json()
         for item in data.get("jobs", []):
+            if not is_entry_level(item.get("title", ""), item.get("tags", "")):
+                continue
+            if not is_worldwide_remote(item.get("candidate_required_location", "Worldwide")):
+                continue
             jobs.append({
-                "title":    item.get("title", "N/A"),
-                "company":  item.get("company_name", "N/A"),
                 "location": item.get("candidate_required_location", "Worldwide"),
                 "url":      item.get("url", "#"),
                 "source":   "Remotive",
