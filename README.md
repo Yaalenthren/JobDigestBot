@@ -89,8 +89,3 @@ In `scripts/job_digest.py`, you can adjust:
 
 ---
 
-## 💡 Why GitHub Actions?
-- **Free** — GitHub gives 2,000 minutes/month on free accounts
-- **No server needed** — fully managed
-- **Reliable** — runs even if your PC is off
-- **Great for your DevOps resume** — shows CI/CD pipeline knowledge
